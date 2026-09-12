@@ -1,5 +1,4 @@
 name = "Nebul"
-npm = "@ai-sdk/openai-compatible"
-api = "https://api.inference.nebul.io/v1"
+npm = "@ai-sdk/nebul"
 env = ["NEBUL_API_KEY"]
 doc = "https://docs.nebul.io"
