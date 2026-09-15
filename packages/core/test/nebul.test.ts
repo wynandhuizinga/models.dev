@@ -128,9 +128,14 @@ test("resolves base models across org renames and quantization suffixes", () => 
   }
 });
 
-test("skips the ping model, serving artifacts, and deprecated entries silently", () => {
-  for (const model_name of ["Nebul/Ping", "zai-org/GLM-5.1-FP8", "zai-org/GLM-5.2-FP8", "Nebul-OCR/Some-OCR", "Qwen/Qwen3Guard-Something"]) {
+test("skips out-of-scope specialized models and superseded entries silently", () => {
+  for (const model_name of ["zai-org/GLM-OCR", "deepseek-ai/DeepSeek-OCR", "Qwen/Qwen3Guard-Gen-8B"]) {
     const entry = nebulEntry(model_name, {});
+    expect(nebul.translateModel(entry, context(undefined))).toBeUndefined();
+    expect(nebul.sourceID(entry)).toBeUndefined();
+  }
+  for (const model_name of ["zai-org/GLM-5.1-FP8", "zai-org/GLM-5.2-FP8"]) {
+    const entry = nebulEntry(model_name, { superseded_by_model_name: "zai-org/GLM-5.3" });
     expect(nebul.translateModel(entry, context(undefined))).toBeUndefined();
     expect(nebul.sourceID(entry)).toBeUndefined();
   }

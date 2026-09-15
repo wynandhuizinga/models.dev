@@ -28,12 +28,10 @@ const BASE_MODEL_ALIASES: Record<string, string | undefined> = {
   "mistralai/Mistral-Medium-3.5-128B": "mistral/mistral-medium-2604",
 };
 
-// The synthetic health-check model and serving artifacts that must not enter the catalog.
-const PING_MODEL = "Nebul/Ping";
-const DENYLIST = /OCR|Qwen3Guard/i;
-
-// Deprecated server-side (descriptions point at GLM-5.3) but not flagged by /model/info.
-const DEPRECATED = new Set(["zai-org/GLM-5.1-FP8", "zai-org/GLM-5.2-FP8"]);
+// Catalog scope is general chat models. The public catalog also lists specialized
+// document-OCR and content-safety models under llm/chat; keep those out (they are
+// not coding/chat targets and models.dev carries no matching lab metadata for them).
+const OUT_OF_SCOPE_PATTERNS = [/OCR/i, /Qwen3Guard/i];
 
 const EffortValues = z.enum(["none", "minimal", "low", "medium", "high", "xhigh", "max", "default"]);
 
@@ -47,6 +45,7 @@ const ModelInfo = z.object({
   mode: z.string().nullable(),
   model_type: z.string().nullable(),
   reasoning_efforts: z.array(EffortValues).nullable().optional(),
+  superseded_by_model_name: z.string().nullable().optional(),
 }).passthrough();
 
 export const NebulEntry = z.object({
@@ -137,8 +136,8 @@ export const nebul = {
     // keep the authored fields, refreshing only what /model/info still provides.
     return { id, model: { ...existing, ...values } as SyncedModel };
   },
-  // Only report chat models whose base_model could not be resolved; filtered
-  // serving artifacts (embeddings, rerankers, the ping model) skip silently.
+  // Only report in-scope chat models whose base_model could not be resolved; filtered
+  // entries (embeddings, rerankers, out-of-scope specialized models, superseded IDs) skip silently.
   sourceID(entry: NebulEntry) {
     return isCatalogChatModel(entry) ? entry.model_name : undefined;
   },
@@ -154,7 +153,7 @@ export const nebul = {
 function isCatalogChatModel(entry: NebulEntry): boolean {
   const info = entry.model_info;
   return info.model_type === "llm" && info.mode === "chat"
-    && entry.model_name !== PING_MODEL && !DEPRECATED.has(entry.model_name) && !DENYLIST.test(entry.model_name);
+    && info.superseded_by_model_name == null && !OUT_OF_SCOPE_PATTERNS.some((pattern) => pattern.test(entry.model_name));
 }
 
 // Nebul documents exactly one reasoning control: reasoning_effort. When the
